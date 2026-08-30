@@ -31,6 +31,12 @@ TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
     "refund_initiated": (frozenset({"captured"}), "refund_pending"),
     "refund_processed": (frozenset({"refund_pending"}), "refunded"),
     "refund_failed": (frozenset({"refund_pending"}), "captured"),
+    # Policy verdicts (Phase 3): every intent passes through the engine.
+    "policy_denied": (frozenset({"initiated"}), "denied"),
+    "policy_step_up": (frozenset({"initiated"}), "pending_approval"),
+    "approval_granted": (frozenset({"pending_approval"}), "initiated"),
+    "approval_denied": (frozenset({"pending_approval"}), "denied"),
+    "approval_expired": (frozenset({"pending_approval"}), "expired"),
     # Recorded observations that do not change state:
     "amount_mismatch_flagged": (frozenset(), ""),
     "provider_error": (frozenset(), ""),

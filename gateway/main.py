@@ -4,8 +4,11 @@ from gateway.config import get_settings
 from gateway.errors import register_error_handlers
 from gateway.logging import configure_logging
 from gateway.middleware import RequestIdMiddleware
+from gateway.routes.admin import router as admin_router
 from gateway.routes.catalog import router as catalog_router
+from gateway.routes.decisions import router as decisions_router
 from gateway.routes.health import router as health_router
+from gateway.routes.intents import router as intents_router
 from gateway.routes.orders import router as orders_router
 from gateway.routes.webhooks import router as webhooks_router
 
@@ -30,6 +33,9 @@ def create_app() -> FastAPI:
     app.include_router(catalog_router)
     app.include_router(orders_router)
     app.include_router(webhooks_router)
+    app.include_router(intents_router)
+    app.include_router(admin_router)
+    app.include_router(decisions_router)
     return app
 
 

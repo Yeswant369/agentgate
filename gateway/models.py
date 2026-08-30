@@ -66,6 +66,8 @@ class Transaction(TimestampMixin, Base):
     amount_paise: Mapped[int] = mapped_column(BigInteger, nullable=False)
     currency: Mapped[str] = mapped_column(Text, nullable=False, default="INR")
     current_state: Mapped[str] = mapped_column(Text, nullable=False)
+    agent_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+    mandate_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     idempotency_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     razorpay_order_id: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
     razorpay_payment_id: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -80,6 +82,61 @@ class Transaction(TimestampMixin, Base):
             "refunded_paise >= 0 AND refunded_paise <= captured_paise",
             name="ck_txn_refund_le_captured",
         ),
+    )
+
+
+class Agent(TimestampMixin, Base):
+    __tablename__ = "agents"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    # Only the SHA-256 of the API key is stored; the key itself is shown once
+    # at creation and never again.
+    api_key_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+
+
+class Mandate(TimestampMixin, Base):
+    __tablename__ = "mandates"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), nullable=False, index=True)
+    max_txn_paise: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    daily_cap_paise: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Allowlisting is by merchant ID, never by name: unicode lookalike names
+    # must not be able to impersonate an allowed merchant.
+    merchant_allowlist: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    allowed_categories: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (
+        CheckConstraint("max_txn_paise > 0", name="ck_mandate_txn_cap_positive"),
+        CheckConstraint("daily_cap_paise > 0", name="ck_mandate_daily_cap_positive"),
+    )
+
+
+class AuditRecord(Base):
+    __tablename__ = "audit_log"
+
+    # Monotonic sequence: appends are serialized under an advisory lock so the
+    # chain can never fork under concurrency.
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    request_id: Mapped[str] = mapped_column(Text, nullable=False)
+    agent_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mandate_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    transaction_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decision: Mapped[str] = mapped_column(Text, nullable=False)  # allow|deny|step_up
+    policy_version: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # The full policy INPUT snapshot + per-rule results: what was decided,
+    # from what evidence, by which ruleset — enough to replay deterministically.
+    input_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    rule_results: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    prev_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    hash: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
 
 

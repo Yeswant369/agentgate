@@ -30,7 +30,15 @@ def problem_response(
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        return problem_response(status=exc.status_code, title=exc.detail or "HTTP error")
+        from http import HTTPStatus
+
+        try:
+            title = HTTPStatus(exc.status_code).phrase
+        except ValueError:
+            title = "HTTP error"
+        return problem_response(
+            status=exc.status_code, title=title, detail=str(exc.detail or "")
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(request: Request, exc: RequestValidationError):

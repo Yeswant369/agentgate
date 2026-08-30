@@ -119,3 +119,78 @@ body {
   max-width: 46rem;
   line-height: 1.55;
 }
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+  background: var(--panel);
+}
+
+code {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.pill {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+}
+
+.pill-allow {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.pill-deny {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.pill-step_up {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.bad {
+  color: var(--bad);
+}

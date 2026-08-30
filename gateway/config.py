@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
+    # Guards the human-mutating admin surface (agent/mandate creation, step-up
+    # approvals). A single operator token — deliberately not a user system.
+    admin_token: str = ""
 
     @model_validator(mode="after")
     def fail_fast_in_production(self) -> "Settings":

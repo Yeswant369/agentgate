@@ -8,3 +8,6 @@ __pycache__/
 dashboard/node_modules/
 dashboard/dist/
 .vercel/
+.vercel
+.env*
+!.env.example

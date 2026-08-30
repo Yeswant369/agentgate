@@ -4,7 +4,7 @@
 
 > Security model in one line: the gateway assumes the agent is already compromised. Prompt engineering is not the security boundary — this engine is.
 
-**Live demo:** _URL coming after first deploy_ · **Build plan:** [docs/build-plan.md](docs/build-plan.md)
+**Live demo:** [agentgate-ebon.vercel.app](https://agentgate-ebon.vercel.app) · **API docs:** [/api/docs](https://agentgate-ebon.vercel.app/api/docs) · **Build plan:** [docs/build-plan.md](docs/build-plan.md)
 
 ## Quickstart (local, ~5 minutes)
 

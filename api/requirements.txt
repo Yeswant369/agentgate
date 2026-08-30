@@ -1,0 +1,8 @@
+# Runtime-only dependencies for the Vercel function (dev tooling stays in the
+# root requirements.txt and never ships to production).
+fastapi>=0.141
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+razorpay>=1.4
+httpx>=0.28
+pydantic-settings>=2.7

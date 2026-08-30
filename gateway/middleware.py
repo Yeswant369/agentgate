@@ -18,9 +18,7 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
     (so upstream systems can trace through us), otherwise generate one.
     Every log line and error envelope in this request carries it."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         incoming = request.headers.get(REQUEST_ID_HEADER, "")
         request_id = incoming if 0 < len(incoming) <= 128 else uuid.uuid4().hex
         token = request_id_var.set(request_id)

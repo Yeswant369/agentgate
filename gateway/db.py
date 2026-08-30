@@ -1,8 +1,12 @@
+from collections.abc import Generator
+
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
 from gateway.config import get_settings
 
 _engine: Engine | None = None
+_session_factory: sessionmaker[Session] | None = None
 
 
 def get_engine() -> Engine:
@@ -21,6 +25,27 @@ def get_engine() -> Engine:
             connect_args={"connect_timeout": 5},
         )
     return _engine
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    global _session_factory
+    if _session_factory is None:
+        _session_factory = sessionmaker(bind=get_engine(), expire_on_commit=False)
+    return _session_factory
+
+
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency: one session per request; commit on success,
+    rollback on any exception — atomicity is owned here, not in handlers."""
+    session = get_session_factory()()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def check_database_ready() -> bool:

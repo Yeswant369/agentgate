@@ -4,7 +4,10 @@ from gateway.config import get_settings
 from gateway.errors import register_error_handlers
 from gateway.logging import configure_logging
 from gateway.middleware import RequestIdMiddleware
+from gateway.routes.catalog import router as catalog_router
 from gateway.routes.health import router as health_router
+from gateway.routes.orders import router as orders_router
+from gateway.routes.webhooks import router as webhooks_router
 
 
 def create_app() -> FastAPI:
@@ -17,13 +20,16 @@ def create_app() -> FastAPI:
             "Trust gateway for agentic commerce: every money action "
             "explainable, bounded and gated."
         ),
-        version="0.1.0",
+        version="0.2.0",
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
     )
     app.add_middleware(RequestIdMiddleware)
     register_error_handlers(app)
     app.include_router(health_router)
+    app.include_router(catalog_router)
+    app.include_router(orders_router)
+    app.include_router(webhooks_router)
     return app
 
 

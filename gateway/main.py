@@ -1,0 +1,30 @@
+from fastapi import FastAPI
+
+from gateway.config import get_settings
+from gateway.errors import register_error_handlers
+from gateway.logging import configure_logging
+from gateway.middleware import RequestIdMiddleware
+from gateway.routes.health import router as health_router
+
+
+def create_app() -> FastAPI:
+    configure_logging()
+    get_settings()  # fail fast: invalid production config crashes here, at boot
+
+    app = FastAPI(
+        title="AgentGate",
+        description=(
+            "Trust gateway for agentic commerce: every money action "
+            "explainable, bounded and gated."
+        ),
+        version="0.1.0",
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
+    )
+    app.add_middleware(RequestIdMiddleware)
+    register_error_handlers(app)
+    app.include_router(health_router)
+    return app
+
+
+app = create_app()

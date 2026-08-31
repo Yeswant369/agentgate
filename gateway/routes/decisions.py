@@ -77,6 +77,46 @@ def audit_verify(db: Session = Depends(get_db)) -> dict:
     return verify_chain(db)
 
 
+@router.get("/audit/export")
+def audit_export(limit: int = 5000, db: Session = Depends(get_db)) -> dict:
+    """The full chain as JSON, so a judge can verify the hash math WITHOUT
+    trusting this API — run scripts/verify_chain.py against this output.
+    The fields returned are exactly those the hash is computed over, in order."""
+    limit = max(1, min(limit, 20000))
+    rows = db.scalars(select(AuditRecord).order_by(AuditRecord.id).limit(limit)).all()
+    return {
+        "genesis_hash": "0" * 64,
+        "hash_construction": "sha256(prev_hash + canonical_json(content))",
+        "canonical_json": "json.dumps(content, sort_keys=True, separators=(',',':'))",
+        "content_fields": [
+            "request_id",
+            "agent_id",
+            "mandate_id",
+            "transaction_id",
+            "decision",
+            "policy_version",
+            "input_snapshot",
+            "rule_results",
+        ],
+        "records": [
+            {
+                "id": r.id,
+                "request_id": r.request_id,
+                "agent_id": r.agent_id,
+                "mandate_id": r.mandate_id,
+                "transaction_id": r.transaction_id,
+                "decision": r.decision,
+                "policy_version": r.policy_version,
+                "input_snapshot": r.input_snapshot,
+                "rule_results": r.rule_results,
+                "prev_hash": r.prev_hash,
+                "hash": r.hash,
+            }
+            for r in rows
+        ],
+    }
+
+
 @router.get("/audit/records")
 def audit_records(limit: int = 50, db: Session = Depends(get_db)) -> list[dict]:
     limit = max(1, min(limit, 200))

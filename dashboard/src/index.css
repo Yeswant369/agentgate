@@ -281,3 +281,48 @@ h2 { color: var(--text); }
   border-color: var(--bad);
   color: var(--bad);
 }
+
+.lede {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  max-width: 46rem;
+  color: var(--text);
+}
+
+.pg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+.pg-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.pg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pg-result {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.pg-rules {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.pg-rules li {
+  margin: 0.2rem 0;
+}

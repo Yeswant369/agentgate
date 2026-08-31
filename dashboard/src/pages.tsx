@@ -1,20 +1,85 @@
 import { useEffect, useState } from 'react'
 
-function Stub({ title, coming }: { title: string; coming: string }) {
-  return (
-    <section>
-      <h1>{title}</h1>
-      <p className="muted">{coming}</p>
-    </section>
-  )
+type OverviewData = {
+  total_decisions: number
+  by_decision: Record<string, number>
+  denials_by_rule: Record<string, number>
+  chain: { intact: boolean; length: number }
 }
 
 export function Overview() {
+  const [data, setData] = useState<OverviewData | null>(null)
+
+  useEffect(() => {
+    fetch('/api/overview')
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+  }, [])
+
   return (
-    <Stub
-      title="Overview"
-      coming="Live counters land in Phase 6: decisions made, denials by attack class, audit-chain length and integrity."
-    />
+    <section>
+      <h1>AgentGate</h1>
+      <p className="lede">
+        AI agents are starting to spend real money. AgentGate is the deterministic policy
+        engine between an AI buyer agent and the payment rails — every money action{' '}
+        <b>explainable, bounded and gated</b>, even when the agent itself is manipulated.
+      </p>
+      <p className="muted" style={{ marginTop: '0.5rem' }}>
+        The gateway assumes the agent is already compromised. Prompt engineering is not the
+        security boundary — this engine is. No LLM sits in the decision path.
+      </p>
+
+      {data && (
+        <>
+          <div className="stat-row" style={{ marginTop: '1.5rem' }}>
+            <div className="stat">
+              <span className="stat-label">decisions made</span>
+              <span className="stat-val">{data.total_decisions.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">allowed</span>
+              <span className="stat-val" style={{ color: 'var(--ok)' }}>
+                {data.by_decision.allow ?? 0}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">denied</span>
+              <span className="stat-val" style={{ color: 'var(--bad)' }}>
+                {data.by_decision.deny ?? 0}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">audit chain</span>
+              <span className="stat-val" style={{ color: data.chain.intact ? 'var(--ok)' : 'var(--bad)' }}>
+                {data.chain.intact ? `✓ ${data.chain.length} intact` : '✗ broken'}
+              </span>
+            </div>
+          </div>
+
+          <h2 style={{ fontSize: '1rem', marginTop: '1.5rem' }}>Denials by rule</h2>
+          <div className="table-wrap" style={{ maxWidth: '32rem' }}>
+            <table>
+              <tbody>
+                {Object.entries(data.denials_by_rule).map(([rule, n]) => (
+                  <tr key={rule}>
+                    <td>
+                      <code>{rule}</code>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{n}</td>
+                  </tr>
+                ))}
+                {Object.keys(data.denials_by_rule).length === 0 && (
+                  <tr>
+                    <td className="muted">no denials yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
   )
 }
 
@@ -268,6 +333,7 @@ type AuditRow = {
 export function AuditChain() {
   const [rows, setRows] = useState<AuditRow[] | null>(null)
   const [verify, setVerify] = useState<string>('')
+  const [replays, setReplays] = useState<Record<number, string>>({})
 
   useEffect(() => {
     fetch('/api/audit/records?limit=50')
@@ -275,6 +341,19 @@ export function AuditChain() {
       .then(setRows)
       .catch(() => setRows([]))
   }, [])
+
+  const replayDecision = (id: number) => {
+    setReplays((s) => ({ ...s, [id]: '…' }))
+    fetch(`/api/decisions/${id}/replay`, { method: 'POST' })
+      .then((r) => r.json())
+      .then((d) =>
+        setReplays((s) => ({
+          ...s,
+          [id]: d.identical ? '✓ identical' : d.detail ? 'n/a' : '✗ diverged',
+        })),
+      )
+      .catch(() => setReplays((s) => ({ ...s, [id]: 'error' })))
+  }
 
   const runVerify = () => {
     setVerify('verifying…')
@@ -312,6 +391,7 @@ export function AuditChain() {
               <th>prev_hash</th>
               <th>hash</th>
               <th>when</th>
+              <th>replay</th>
             </tr>
           </thead>
           <tbody>
@@ -328,11 +408,16 @@ export function AuditChain() {
                   <code>{r.hash}</code>
                 </td>
                 <td>{new Date(r.created_at).toLocaleString()}</td>
+                <td>
+                  <button onClick={() => replayDecision(r.id)}>
+                    {replays[r.id] ?? 'replay'}
+                  </button>
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="muted">
+                <td colSpan={6} className="muted">
                   chain is empty
                 </td>
               </tr>
@@ -344,11 +429,98 @@ export function AuditChain() {
   )
 }
 
+type PlaygroundScenario = { id: string; title: string; story: string; expected: string }
+type ReplayResult = {
+  decision: string
+  expected: string
+  matches_expected: boolean
+  note: string
+  rules: { rule_id: string; reason: string }[]
+  rate_limit_remaining: number
+}
+
 export function Playground() {
+  const [scenarios, setScenarios] = useState<PlaygroundScenario[] | null>(null)
+  const [results, setResults] = useState<Record<string, ReplayResult | 'running' | 'limited'>>({})
+
+  useEffect(() => {
+    fetch('/api/playground/scenarios')
+      .then((r) => r.json())
+      .then(setScenarios)
+      .catch(() => setScenarios([]))
+  }, [])
+
+  const run = (id: string) => {
+    setResults((s) => ({ ...s, [id]: 'running' }))
+    fetch(`/api/playground/replay/${id}`, { method: 'POST' })
+      .then((r) => {
+        if (r.status === 429) {
+          setResults((s) => ({ ...s, [id]: 'limited' }))
+          return null
+        }
+        return r.json()
+      })
+      .then((body) => {
+        if (body) setResults((s) => ({ ...s, [id]: body }))
+      })
+      .catch(() => setResults((s) => ({ ...s, [id]: 'limited' })))
+  }
+
+  if (scenarios === null) return <p className="muted">loading…</p>
   return (
-    <Stub
-      title="Judge Playground"
-      coming="Replay recorded agent sessions — legit purchases and attacks — through the live policy engine. Arrives in Phase 6."
-    />
+    <section>
+      <h1>Judge Playground</h1>
+      <p className="muted">
+        Click any scenario to re-fire a recorded agent session through the <b>live</b> policy
+        engine. The agent's shopping is pre-recorded; the gateway's decision is computed fresh
+        on your click. Rate-limited to 20 replays/minute per IP — the demo being bounded and
+        gated is itself the thesis. Nothing here can spend money.
+      </p>
+      <div className="pg-grid">
+        {scenarios.map((s) => {
+          const res = results[s.id]
+          return (
+            <div key={s.id} className="pg-card">
+              <div className="pg-head">
+                <b>{s.title}</b>
+                <span className={`pill pill-${s.expected}`}>{s.expected}</span>
+              </div>
+              <p className="muted" style={{ fontSize: '0.8rem', margin: '0.4rem 0 0.7rem' }}>
+                {s.story}
+              </p>
+              <button onClick={() => run(s.id)} disabled={res === 'running'}>
+                {res === 'running' ? 'running…' : '▶ Replay live'}
+              </button>
+              {res === 'limited' && (
+                <p className="bad" style={{ fontSize: '0.8rem' }}>
+                  rate limited — wait a minute (the demo is bounded too)
+                </p>
+              )}
+              {res && res !== 'running' && res !== 'limited' && (
+                <div className="pg-result">
+                  <span className={`pill pill-${res.decision}`}>
+                    gateway: {res.decision}
+                  </span>{' '}
+                  {res.matches_expected ? (
+                    <span className="ok">✓ as expected</span>
+                  ) : (
+                    <span className="bad">✗ unexpected</span>
+                  )}
+                  {res.rules.length > 0 && (
+                    <ul className="pg-rules">
+                      {res.rules.map((r) => (
+                        <li key={r.rule_id}>
+                          <code>{r.rule_id}</code>: {r.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }

@@ -185,6 +185,17 @@ class AgentSession(Base):
     )
 
 
+class RateLimit(Base):
+    __tablename__ = "rate_limits"
+
+    # DB-backed rate limiting: correctness cannot live in one instance's memory
+    # on a stateless, horizontally-scaled gateway. Keyed by (bucket, client).
+    bucket: Mapped[str] = mapped_column(Text, primary_key=True)
+    client: Mapped[str] = mapped_column(Text, primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
+
 class EvalRun(Base):
     __tablename__ = "eval_runs"
 

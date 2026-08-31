@@ -11,6 +11,8 @@ from gateway.routes.health import router as health_router
 from gateway.routes.intents import router as intents_router
 from gateway.routes.metrics import router as metrics_router
 from gateway.routes.orders import router as orders_router
+from gateway.routes.overview import router as overview_router
+from gateway.routes.playground import router as playground_router
 from gateway.routes.sessions import router as sessions_router
 from gateway.routes.webhooks import router as webhooks_router
 
@@ -40,6 +42,8 @@ def create_app() -> FastAPI:
     app.include_router(decisions_router)
     app.include_router(sessions_router)
     app.include_router(metrics_router)
+    app.include_router(overview_router)
+    app.include_router(playground_router)
     return app
 
 

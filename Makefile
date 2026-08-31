@@ -1,4 +1,4 @@
-.PHONY: api dash test lint migrate check seed seed-attacks reconcile e2e demo
+.PHONY: api dash test lint migrate check seed seed-attacks reconcile e2e demo eval fixtures
 
 api:
 	.venv/bin/uvicorn gateway.main:app --reload --port 8000
@@ -23,6 +23,12 @@ seed-attacks:
 
 demo:
 	.venv/bin/python scripts/demo.py
+
+eval:
+	.venv/bin/python -m evals.run
+
+fixtures:
+	.venv/bin/python -m evals.dump_fixtures
 
 reconcile:
 	.venv/bin/python scripts/reconcile.py

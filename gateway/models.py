@@ -185,6 +185,21 @@ class AgentSession(Base):
     )
 
 
+class EvalRun(Base):
+    __tablename__ = "eval_runs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ran_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    mode: Mapped[str] = mapped_column(Text, nullable=False)  # replay | live
+    model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scenario_count: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Full metrics blob: confusion matrix, per-class detection w/ CIs, mutation
+    # results, FP cost. Kept forever — unflattering runs stay in the history.
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+
+
 class ReconRun(Base):
     __tablename__ = "recon_runs"
 

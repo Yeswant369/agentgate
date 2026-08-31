@@ -112,12 +112,147 @@ export function Decisions() {
   )
 }
 
+type Interval = { point: number; lo: number; hi: number; n: number }
+type MetricsData = {
+  available: boolean
+  ran_at?: string
+  scenario_count?: number
+  metrics?: {
+    confusion_matrix: {
+      tp: number; fn: number; tn: number; fp: number
+      held_for_approval: number; system_errors: number
+      precision: Interval; recall: Interval; fpr: Interval; fnr: Interval
+      f1: number; fp_cost_rupees_per_lakh: number
+    }
+    per_class: Record<string, Record<string, unknown>>
+    mutation_testing: { mutations_run: number; all_caught: boolean; surviving: string[] }
+  }
+}
+
+const ci = (i?: Interval) =>
+  !i || i.n === 0
+    ? 'n/a'
+    : `${(i.point * 100).toFixed(0)}% [${(i.lo * 100).toFixed(0)}–${(i.hi * 100).toFixed(0)}%]`
+
 export function Metrics() {
+  const [data, setData] = useState<MetricsData | null>(null)
+
+  useEffect(() => {
+    fetch('/api/metrics')
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData({ available: false }))
+  }, [])
+
+  if (data === null) return <p className="muted">loading…</p>
+  if (!data.available || !data.metrics)
+    return (
+      <section>
+        <h1>Metrics</h1>
+        <p className="muted">
+          No eval run recorded yet. Run <code>make eval</code> to generate metrics.
+        </p>
+      </section>
+    )
+
+  const m = data.metrics
+  const cm = m.confusion_matrix
   return (
-    <Stub
-      title="Metrics"
-      coming="Confusion matrix, per-attack-class detection rates with confidence intervals, and false-positive cost in ₹. Arrives with the eval harness (Phase 5)."
-    />
+    <section>
+      <h1>Metrics</h1>
+      <p className="muted">
+        From {data.scenario_count} seeded scenarios (40 legit, 40 attacks), reproducible via{' '}
+        <code>make eval</code>. Positive class = attack that should be blocked. Wilson 95%
+        confidence intervals — with small per-class n, the interval is the honest number.
+      </p>
+
+      <h2 style={{ fontSize: '1rem', marginTop: '1.5rem' }}>Confusion matrix</h2>
+      <div className="cm-grid">
+        <div className="cm-cell cm-good">
+          <span className="cm-n">{cm.tp}</span>TP · attacks blocked
+        </div>
+        <div className="cm-cell cm-bad">
+          <span className="cm-n">{cm.fn}</span>FN · attacks MISSED
+        </div>
+        <div className="cm-cell cm-bad">
+          <span className="cm-n">{cm.fp}</span>FP · legit BLOCKED
+        </div>
+        <div className="cm-cell cm-good">
+          <span className="cm-n">{cm.tn}</span>TN · legit allowed
+        </div>
+      </div>
+      <p className="muted" style={{ fontSize: '0.8rem' }}>
+        held for approval: {cm.held_for_approval} · system-error denials:{' '}
+        {cm.system_errors} (not counted as catches)
+      </p>
+
+      <div className="stat-row">
+        <div className="stat">
+          <span className="stat-label">recall (detection)</span>
+          <span className="stat-val">{ci(cm.recall)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">precision</span>
+          <span className="stat-val">{ci(cm.precision)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">F1</span>
+          <span className="stat-val">{cm.f1.toFixed(3)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">false-positive rate</span>
+          <span className="stat-val">{ci(cm.fpr)}</span>
+        </div>
+      </div>
+
+      <div className="fp-cost">
+        False-positive cost: <b>≈ ₹{cm.fp_cost_rupees_per_lakh.toLocaleString('en-IN')}</b> of
+        legitimate commerce blocked per ₹1,00,000 of legitimate agent commerce. Every false
+        positive is a real customer turned away — we measure it instead of hiding it.
+      </div>
+
+      <h2 style={{ fontSize: '1rem', marginTop: '1.5rem' }}>Per-class detection (95% CI)</h2>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>class</th>
+              <th>n</th>
+              <th>detection / correct-allow</th>
+              <th>misses / FPs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(m.per_class).map(([klass, r]) => {
+              const isLegit = klass === 'legit'
+              const rate = (isLegit ? r.correct_allow : r.detection) as Interval
+              return (
+                <tr key={klass}>
+                  <td>{isLegit ? <b>{klass}</b> : klass}</td>
+                  <td>{r.n as number}</td>
+                  <td>{ci(rate)}</td>
+                  <td>
+                    {isLegit
+                      ? `FP=${r.false_positives} held=${r.held_for_approval}`
+                      : `missed=${r.missed}`}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div
+        className={m.mutation_testing.all_caught ? 'mutation ok' : 'mutation bad'}
+        style={{ marginTop: '1.25rem' }}
+      >
+        Mutation testing: {m.mutation_testing.mutations_run} weakened rules tested —{' '}
+        {m.mutation_testing.all_caught
+          ? 'all regressions caught by the suite ✓'
+          : `SURVIVING: ${m.mutation_testing.surviving.join(', ')}`}
+      </div>
+    </section>
   )
 }
 

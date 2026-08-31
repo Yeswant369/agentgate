@@ -12,3 +12,4 @@ hypothesis>=6.100
 # must run identical versions or formatting drift breaks the build.
 ruff==0.16.5
 mypy==2.3.1
+pyyaml>=6.0

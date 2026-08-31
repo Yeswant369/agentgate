@@ -41,6 +41,9 @@ jobs:
       - run: mypy gateway/
       - run: alembic upgrade head
       - run: pytest -q
+      # Eval regression + mutation gate: a rule change that lets an attack
+      # through, or a mutation the suite stops catching, fails the build.
+      - run: python -m evals.run --no-persist
 
   dashboard:
     runs-on: ubuntu-latest

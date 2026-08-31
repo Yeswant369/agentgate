@@ -11,6 +11,8 @@ from gateway.db import get_db
 from gateway.ledger import NEW_STATE, append_event
 from gateway.logging import log_with, request_id_var
 from gateway.models import Agent, Mandate, Merchant, Product, Transaction, new_id
+from gateway.money import Money
+from gateway.payments.razorpay_client import RazorpayClient, RazorpayError
 from gateway.policy.engine import gather_input, lock_mandate
 from gateway.policy.rules import POLICY_VERSION, evaluate
 from gateway.security import hash_agent_key
@@ -61,6 +63,30 @@ def _deny_reasons(rule_results: list[dict]) -> list[dict]:
         for r in rule_results
         if r["outcome"] != "pass"
     ]
+
+
+@router.get("/{transaction_id}")
+def get_intent(
+    transaction_id: str,
+    x_agent_key: str = Header(min_length=8),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Ledger truth for one transaction, scoped to the owning agent. This is
+    what `check_intent_status` reads and what the hallucination detector
+    compares the agent's claims against."""
+    agent = db.scalar(select(Agent).where(Agent.api_key_hash == hash_agent_key(x_agent_key)))
+    if agent is None:
+        raise HTTPException(status_code=401, detail="invalid agent key")
+    txn = db.get(Transaction, transaction_id)
+    if txn is None or txn.agent_id != agent.id:
+        raise HTTPException(status_code=404, detail="transaction not found")
+    return {
+        "transaction_id": txn.id,
+        "state": txn.current_state,
+        "amount_paise": txn.amount_paise,
+        "captured_paise": txn.captured_paise,
+        "razorpay_order_id": txn.razorpay_order_id,
+    }
 
 
 @router.post("", status_code=201)
@@ -146,6 +172,18 @@ def create_intent(
         )
     elif decision.decision == "step_up":
         append_event(db, txn, "policy_step_up", {})
+    else:  # allow: only now does a real payment order get created
+        try:
+            order = RazorpayClient().create_order(
+                Money(txn.amount_paise, txn.currency), receipt=txn.id
+            )
+            txn.razorpay_order_id = order["id"]
+            append_event(db, txn, "provider_order_created", {"razorpay_order_id": order["id"]})
+        except RazorpayError as exc:
+            # Gateway allowed it but the provider is down: fail closed — record
+            # the error and do NOT report a success the rail never accepted.
+            append_event(db, txn, "provider_error", {"error": str(exc)})
+            log_with(logger, logging.ERROR, "provider order failed post-allow", txn_id=txn.id)
 
     try:
         db.flush()

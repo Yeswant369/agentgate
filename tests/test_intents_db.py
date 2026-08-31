@@ -73,7 +73,7 @@ def _intent(client, agent, claimed=None, key=None):
     )
 
 
-def test_clean_intent_allowed_with_audit(client, gated_agent):
+def test_clean_intent_allowed_with_audit(client, gated_agent, stub_provider):
     resp = _intent(client, gated_agent)
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -135,7 +135,7 @@ def test_audit_chain_tamper_detected_then_restored(client, gated_agent):
     assert client.get("/api/audit/verify").json()["intact"] is True
 
 
-def test_ten_concurrent_requests_cap_room_for_one(client, seeded_product):
+def test_ten_concurrent_requests_cap_room_for_one(client, seeded_product, stub_provider):
     """THE race test. Daily cap fits exactly one purchase of the test product
     (price 123456, cap 150000). 10 concurrent intents: exactly one allow —
     whether the rest lose to the daily cap or the duplicate rule, none may

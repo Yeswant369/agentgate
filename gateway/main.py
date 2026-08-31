@@ -10,6 +10,7 @@ from gateway.routes.decisions import router as decisions_router
 from gateway.routes.health import router as health_router
 from gateway.routes.intents import router as intents_router
 from gateway.routes.orders import router as orders_router
+from gateway.routes.sessions import router as sessions_router
 from gateway.routes.webhooks import router as webhooks_router
 
 
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(intents_router)
     app.include_router(admin_router)
     app.include_router(decisions_router)
+    app.include_router(sessions_router)
     return app
 
 

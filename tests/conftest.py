@@ -83,6 +83,7 @@ def seeded_product():
 def stub_provider(monkeypatch):
     """Replace the Razorpay client in the orders route: tests must be able to
     run offline, and CI must never create real provider orders."""
+    import gateway.routes.intents as intents_module
     import gateway.routes.orders as orders_module
 
     class _StubClient:
@@ -90,4 +91,5 @@ def stub_provider(monkeypatch):
             return {"id": f"order_stub_{uuid.uuid4().hex[:12]}", "amount": amount.paise}
 
     monkeypatch.setattr(orders_module, "RazorpayClient", _StubClient)
+    monkeypatch.setattr(intents_module, "RazorpayClient", _StubClient)
     return _StubClient

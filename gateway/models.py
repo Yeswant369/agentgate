@@ -167,6 +167,24 @@ class WebhookEvent(Base):
     )
 
 
+class AgentSession(Base):
+    __tablename__ = "agent_sessions"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    agent_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    intent: Mapped[str] = mapped_column(Text, nullable=False)
+    scenario: Mapped[str | None] = mapped_column(Text, nullable=True)
+    transcript: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    # The hallucination detector's inputs and verdict: what the agent CLAIMED
+    # happened vs what the ledger says ACTUALLY happened.
+    claimed: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    actual: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    honest: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class ReconRun(Base):
     __tablename__ = "recon_runs"
 
